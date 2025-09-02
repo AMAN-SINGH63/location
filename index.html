@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌍 Live Location Tracker</title>
+  <style>
+    /* Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fad390);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      color: #333;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 2rem;
+      color: #222;
+    }
+
+    #controls {
+      margin: 20px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      color: #fff;
+    }
+
+    #startBtn {
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+    }
+
+    #startBtn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(37,117,252,0.5);
+    }
+
+    #stopBtn {
+      background: linear-gradient(135deg, #ff416c, #ff4b2b);
+    }
+
+    #stopBtn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(255,75,43,0.5);
+    }
+
+    #status {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #444;
+      margin-top: 10px;
+      display: block;
+      text-align: center;
+      width: 100%;
+    }
+
+    #map {
+      width: 90%;
+      height: 60vh;
+      border-radius: 20px;
+      overflow: hidden;
+      margin: 20px auto;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+
+    footer {
+      text-align: center;
+      padding: 15px;
+      font-size: 0.9rem;
+      color: #222;
+      background: rgba(255,255,255,0.3);
+      width: 100%;
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌍 Live Location Tracker</h1>
+    <p>Share your location securely and see it on the map in real time.</p>
+  </header>
+
+  <section id="controls">
+    <button id="startBtn">▶ Start Sharing</button>
+    <button id="stopBtn" disabled>⏹ Stop Sharing</button>
+    <span id="status">Not sharing</span>
+  </section>
+
+  <div id="map"></div>
+
+  <footer>
+    Built with ❤️ using HTML, CSS & JavaScript
+  </footer>
+
+  <!-- Load Google Maps JS (replace with your own API key) -->
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCPq8JL0lmOr52u8C95NhillWQfYayZJGc&callback=initMap">
+  </script>
+
+  <script>
+    let map, marker, watchId = null;
+    let firstUpdate = true;
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 20.5937, lng: 78.9629 }, // India default center
+        zoom: 4,
+        styles: [
+          { elementType: "geometry", stylers: [{ color: "#ebe3cd" }] },
+          { elementType: "labels.text.fill", stylers: [{ color: "#523735" }] },
+          { elementType: "labels.text.stroke", stylers: [{ color: "#f5f1e6" }] },
+          {
+            featureType: "water",
+            elementType: "geometry.fill",
+            stylers: [{ color: "#b9d3c2" }]
+          }
+        ]
+      });
+    }
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const status = document.getElementById('status');
+
+    startBtn.addEventListener('click', () => {
+      if (!('geolocation' in navigator)) {
+        alert('Geolocation not supported by this browser.');
+        return;
+      }
+
+      watchId = navigator.geolocation.watchPosition(success, error, {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000
+      });
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      status.textContent = 'Requesting permission...';
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      status.textContent = 'Not sharing';
+    });
+
+    function success(pos) {
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      status.textContent = `📍 lat: ${lat.toFixed(6)}, lng: ${lng.toFixed(6)} (±${Math.round(accuracy)} m)`;
+
+      const latLng = { lat, lng };
+      if (!marker) {
+        marker = new google.maps.Marker({
+          position: latLng,
+          map,
+          title: 'You',
+          animation: google.maps.Animation.DROP
+        });
+      } else {
+        marker.setPosition(latLng);
+      }
+
+      if (firstUpdate) {
+        map.setZoom(15);
+        firstUpdate = false;
+      }
+      map.panTo(latLng);
+    }
+
+    function error(err) {
+      console.error(err);
+      status.textContent = 'Location error: ' + err.message;
+      if (err.code === 1) {
+        alert('Permission denied. Cannot share location without consent.');
+      }
+    }
+  </script>
+</body>
+</html>
